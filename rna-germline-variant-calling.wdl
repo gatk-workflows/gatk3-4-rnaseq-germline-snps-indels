@@ -8,8 +8,6 @@ workflow RNAseq {
 	File refDict
 	
 	File wgsCallingIntervalList
-	Int? haplotypeScatterCount = 6
-	Int breakBandsAtMultiplesOf = 100000
 
 	Array[File] knownVcfs
 	Array[File] knownVcfsIndices
@@ -17,15 +15,15 @@ workflow RNAseq {
     File dbSnpVcf
     File dbSnpVcfIndex
 
-	## Requirements for STAR
+	## Inputs for STAR
 	Int? readLength
 	File? zippedStarReferences
 	File annotationsGTF
   
   	## Optional user optimizations
-    Int? maxReadsForRealignment
-    Int? compression_level
-    Int? maxRecordsForMergeBamAlignment
+  	Int? haplotypeScatterCount
+    Int scatterCount = select_first([haplotypeScatterCount, 6])
+
     Int? preemptible_tries
     Int preemptible_count = select_first([preemptible_tries, 3])
 
@@ -121,15 +119,13 @@ workflow RNAseq {
 			ref_fasta_index = refFastaIndex,
 			ref_dict = refDict,
 			recalibration_report = BaseRecalibrator.recalibration_report,
-			compression_level = compression_level,
 			preemptible_count = preemptible_count
 	}
 
 	call ScatterIntervalList {
 		input:
 			interval_list = wgsCallingIntervalList,
-      		scatter_count = haplotypeScatterCount,
-      		break_bands_at_multiples_of = breakBandsAtMultiplesOf,
+      		scatter_count = scatterCount,
       		preemptible_count = preemptible_count
 	}
 
@@ -155,24 +151,10 @@ workflow RNAseq {
       		preemptible_count = preemptible_count
   	}
 
-  	call GenotypeGVCFs {
-  		input:
-  			input_gvcf = MergeVCFs.output_vcf,
-  			input_gvcf_index = MergeVCFs.output_vcf_index,
-  			output_vcf_filename = sampleName + ".vcf.gz",
-  			dbSNP_vcf = dbSnpVcf,
-  			dbSNP_vcf_index = dbSnpVcfIndex,
-  			ref_fasta = refFasta,
-  			ref_fasta_index = refFastaIndex,
-  			ref_dict = refDict,
-  			interval_list = wgsCallingIntervalList,
-  			preemptible_count = preemptible_count
-  	}
-
 	call VariantFiltration {
 		input:
-			input_vcf = GenotypeGVCFs.output_vcf,
-			input_vcf_index = GenotypeGVCFs.output_vcf_index,
+			input_vcf = MergeVCFs.output_vcf,
+			input_vcf_index = MergeVCFs.output_vcf_index,
 			base_name = sampleName + ".variant_filtered.vcf.gz",
 			ref_fasta = refFasta,
 			ref_fasta_index = refFastaIndex,
@@ -190,34 +172,6 @@ workflow RNAseq {
 	}
 }
 
-task SortSam {
-	File unsorted_bam
-	String base_name
-	String sort_order
-
-	Int preemptible_count
-
-	command <<<
-	 	java -jar /usr/gitc/picard.jar \
-	 	    SortSam \
-	 	    INPUT=${unsorted_bam} \
-	 	    OUTPUT=${base_name}.bam \
-	 	    SORT_ORDER=${sort_order} \
-	 	    COMPRESSION_LEVEL=0 \
-	 	    VALIDATION_STRINGENCY=SILENT
-	>>>
-
-	output {
-		File output_bam = "${base_name}.bam"
-	}
-
-	runtime {
-		memory: "4 GB"
-		disks: "local-disk " + sub(((size(unsorted_bam,"GB")+1)*10),"\\..*","") + " SSD"
-		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
-		preemptible: preemptible_count
-	}
-}
 
 #NOTE: assuming aggregated bams & paired end fastqs
 task SamToFastq {
@@ -233,20 +187,6 @@ task SamToFastq {
 	 	    VALIDATION_STRINGENCY=SILENT \
 	 	    FASTQ=${base_name}.1.fastq.gz \
 	 	    SECOND_END_FASTQ=${base_name}.2.fastq.gz
-
-	 	# These are the args in the Firehose workflow,
-	 	# but it's unclear how to pass readgroup files to STAR.
-	 	## OUTPUT_DIR=. \
-	 	## OUTPUT_PER_RG=true \
-	 	## COMPRESS_OUTPUTS_PER_RG=true 
-
-	 	##RE_REVERSE=true \ #Removed from the Firehose workflow, as it's a default
-	 	
-	 	# These are args I've seen recommended by other instances
-	 	# of RNA workflows -- not sure if they apply here.
-	 	## NON_PF=true \ 
-	 	## CLIPPING_ATTRIBUTE=XT \
-      	## CLIPPING_ACTION=2 \
 	>>>
 
 	output {
@@ -257,7 +197,7 @@ task SamToFastq {
 	runtime {
 		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
 		memory: "4 GB"
-		disks: "local-disk " + sub(((size(unmapped_bam,"GB")+1)*5),"\\..*","") + " SSD"
+		disks: "local-disk " + sub(((size(unmapped_bam,"GB")+1)*5),"\\..*","") + " HDD"
 		preemptible: preemptible_count
 	}
 }
@@ -295,7 +235,7 @@ task StarGenerateReferences {
 
     runtime {
         docker: "ruchim/star:v1"
-        disks: "local-disk 80 SSD"
+        disks: "local-disk 80 HDD"
         cpu: threads
         memory: "25 GB"
         preemptible: preemptible_count
@@ -346,7 +286,7 @@ task StarAlign {
 
     runtime {
         docker: "ruchim/star:v1"
-        disks: "local-disk " + sub(((size(fastq1,"GB")+size(fastq2,"GB")*10)+30),"\\..*","") + " SSD"
+        disks: "local-disk " + sub(((size(fastq1,"GB")+size(fastq2,"GB")*10)+30),"\\..*","") + " HDD"
         memory: (star_mem+1) + " GB"
         cpu: threads
         preemptible: preemptible_count
@@ -362,7 +302,6 @@ task MergeBamAlignment {
     File star_bam
     String base_name
 
-    Int? max_records
     Int preemptible_count
     #Using default for max_records_in_ram
  
@@ -384,7 +323,7 @@ task MergeBamAlignment {
 
     runtime {
         docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
-        disks: "local-disk " + sub(((size(unaligned_bam,"GB")+size(star_bam,"GB")+1)*5),"\\..*","") + " SSD"
+        disks: "local-disk " + sub(((size(unaligned_bam,"GB")+size(star_bam,"GB")+1)*5),"\\..*","") + " HDD"
         memory: "4 GB"
         preemptible: preemptible_count
     }
@@ -414,7 +353,7 @@ task MarkDuplicates {
  	}
 
 	runtime {
-		disks: "local-disk " + sub(((size(input_bam,"GB")+1)*3),"\\..*","") + " SSD"
+		disks: "local-disk " + sub(((size(input_bam,"GB")+1)*3),"\\..*","") + " HDD"
 		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
 		memory: "4 GB"
 		preemptible: preemptible_count
@@ -453,7 +392,7 @@ task SplitNCigarReads {
  	}
 
     runtime {
-    	disks: "local-disk " + sub(((size(input_bam,"GB")+1)*5 + size(ref_fasta,"GB")),"\\..*","") + " SSD"
+    	disks: "local-disk " + sub(((size(input_bam,"GB")+1)*5 + size(ref_fasta,"GB")),"\\..*","") + " HDD"
 		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
 		memory: "4 GB"
     	preemptible: preemptible_count
@@ -514,22 +453,20 @@ task ApplyBQSR {
     File ref_dict
     File ref_fasta
     File ref_fasta_index
-    #Is there a good default for compression level? just remove the -D arg completely if no preference is provided by the user?
-    Int? compression_level
     Int preemptible_count
 
     command <<<
-        /gatk/gatk-launch --javaOptions "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+        /gatk/gatk-launch \
+            --javaOptions "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
             -XX:+PrintGCDetails -Xloggc:gc_log.log \
-            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Dsamjdk.compression_level=${default=2 compression_level} -Xms3000m" \
+            -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
             ApplyBQSR \
             --addOutputSAMProgramRecord \
             -R ${ref_fasta} \
             -I ${input_bam} \
             --useOriginalQualities \
             -O ${base_name}.bam \
-            -bqsr ${recalibration_report} \
-            --EOQ true
+            -bqsr ${recalibration_report}
     >>>
 
     output {
@@ -564,16 +501,10 @@ task HaplotypeCaller {
 		    -T HaplotypeCaller \
 		    -R ${ref_fasta} \
 		    -I ${input_bam} \
-		    -ERC GVCF \
 		    -L ${interval_list} \
 		    -dontUseSoftClippedBases \
 		    -stand_call_conf 20.0 \
-		    -o ${base_name}.vcf.gz \
-		    -variant_index_parameter 128000 \
-		    -variant_index_type LINEAR
-
-		## Is this required?
-		##--max_alternate_alleles 3 \
+		    -o ${base_name}.vcf.gz
 	>>>
 
     output {
@@ -662,7 +593,6 @@ task ScatterIntervalList {
 
     File interval_list
     Int scatter_count
-    Int break_bands_at_multiples_of
 
     Int preemptible_count
 
@@ -675,7 +605,6 @@ task ScatterIntervalList {
             SUBDIVISION_MODE=BALANCING_WITHOUT_INTERVAL_SUBDIVISION_WITH_OVERFLOW \
             UNIQUE=true \
             SORT=true \
-            BREAK_BANDS_AT_MULTIPLES_OF=${break_bands_at_multiples_of} \
             INPUT=${interval_list} \
             OUTPUT=out
 
@@ -697,51 +626,9 @@ task ScatterIntervalList {
     }
 
     runtime {
-        disks: "local-disk 1 SSD"
+        disks: "local-disk 1 HDD"
         memory: "2 GB"
         docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
-        preemptible: preemptible_count
-    }
-}
-
-task GenotypeGVCFs {
-
-    File input_gvcf
-    File input_gvcf_index
-    String output_vcf_filename
-
-    File ref_fasta
-    File ref_fasta_index
-    File ref_dict
-    File interval_list
-
-    File dbSNP_vcf
-    File dbSNP_vcf_index
-
-    Int preemptible_count
-
-    command <<<
-        /gatk/gatk-launch \
-            GenotypeGVCFs \
-            -R ${ref_fasta} \
-            -O ${output_vcf_filename} \
-            -D ${dbSNP_vcf} \
-            -G StandardAnnotation \
-            -newQual \
-            -L ${interval_list} \
-            -V ${input_gvcf}
-    >>>
-
-    output {
-        File output_vcf = "${output_vcf_filename}"
-        File output_vcf_index = "${output_vcf_filename}.tbi"
-    }
-
-    runtime {
-        docker: "broadinstitute/gatk:4.beta.6"
-        memory: "4 GB"
-        cpu: "2"
-        disks: "local-disk " + sub((size(input_gvcf,"GB")*3)+size(ref_fasta,"GB")+size(dbSNP_vcf,"GB"), "\\..*", "") + " HDD"
         preemptible: preemptible_count
     }
 }
@@ -770,7 +657,7 @@ task RevertSam {
 
     runtime {
         docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
-        disks: "local-disk " + sub(((size(input_bam,"GB")+1)*5),"\\..*","") + " SSD"
+        disks: "local-disk " + sub(((size(input_bam,"GB")+1)*5),"\\..*","") + " HDD"
         memory: "4 GB"
         preemptible: preemptible_count
     }
