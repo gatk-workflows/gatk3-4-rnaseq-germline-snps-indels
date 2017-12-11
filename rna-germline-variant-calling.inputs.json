@@ -14,5 +14,5 @@
   "RNAseq.refFastaIndex": "gs://broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.fasta.fai",
   "RNAseq.refDict": "gs://broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.dict",
   "RNAseq.wgsCallingIntervalList": "gs://rm-dev/refs/decoy/Homo_sapiens_assembly19_1000genomes_decoy.whole_genome.interval_list",
-  "RNAseq.inputBam": "File"
+  "RNAseq.inputBam": "gs://gatk-test-data/rna_bam/NA12878_b37/NA12878.bam"
 }
