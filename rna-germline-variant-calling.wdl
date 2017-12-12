@@ -15,6 +15,8 @@ workflow RNAseq {
     File dbSnpVcf
     File dbSnpVcfIndex
 
+    Int? minConfidenceForVariantCalling
+
 	## Inputs for STAR
 	Int? readLength
 	File? zippedStarReferences
@@ -139,6 +141,9 @@ workflow RNAseq {
 				ref_fasta = refFasta,
 				ref_fasta_index = refFastaIndex,
 				ref_dict = refDict,
+				dbSNP_vcf = dbSnpVcf,
+				dbSNP_vcf_index = dbSnpVcfIndex,
+				stand_call_conf = minConfidenceForVariantCalling,
 				preemptible_count = preemptible_count
 		}
 	}
@@ -494,7 +499,12 @@ task HaplotypeCaller {
   	File ref_fasta
   	File ref_fasta_index
 
+  	File dbSNP_vcf
+  	File dbSNP_vcf_index
+
   	Int preemptible_count
+
+  	Int? stand_call_conf
 
 	command <<<
 		java -jar /usr/gitc/GATK35.jar \
@@ -503,7 +513,8 @@ task HaplotypeCaller {
 		    -I ${input_bam} \
 		    -L ${interval_list} \
 		    -dontUseSoftClippedBases \
-		    -stand_call_conf 20.0 \
+		    -stand_call_conf + ${default=20 stand_call_conf} \
+		    --dbsnp ${dbSNP_vcf} \
 		    -o ${base_name}.vcf.gz
 	>>>
 
