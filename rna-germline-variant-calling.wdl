@@ -1,4 +1,27 @@
-workflow RNAseq {
+## Copyright Broad Institute, 2018
+##
+## Workflows for processing RNA data for germline short variant discovery with GATK (v3+v4) and related tools 
+##
+## Requirements/expectations :
+## - BAM 
+##
+## Output :
+## - A BAM file and its index.
+## - A VCF file and its index. 
+## - A Filtered VCF file and its index. 
+##
+## Runtime parameters are optimized for Broad's Google Cloud Platform implementation.
+## For program versions, see docker containers.
+##
+## LICENSING :
+## This script is released under the WDL source code license (BSD-3) (see LICENSE in
+## https://github.com/broadinstitute/wdl). Note however that the programs it calls may
+## be subject to different licenses. Users are responsible for checking that they are
+## authorized to run all programs before running this script. Please see the docker
+## page at https://hub.docker.com/r/broadinstitute/genomes-in-the-cloud/ for detailed
+## licensing information pertaining to the included programs. 
+ 
+ workflow RNAseq {
 
 	File inputBam
 	String sampleName = basename(inputBam,".bam")
@@ -6,6 +29,12 @@ workflow RNAseq {
 	File refFasta
 	File refFastaIndex
 	File refDict
+    
+    String gitc_docker
+    String gatk4_docker
+    String star_docker
+
+    String gatk_path
 	
 	File wgsCallingIntervalList
 
@@ -34,14 +63,18 @@ workflow RNAseq {
 			input_bam = inputBam,
 			base_name = sampleName + ".reverted",
 			sort_order = "queryname",
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
 	}
 
 	call SamToFastq {
 		input:
 		unmapped_bam = RevertSam.output_bam,
 		base_name = sampleName,
-		preemptible_count = preemptible_count
+		preemptible_count = preemptible_count,
+		docker = gatk4_docker,
+		gatk_path = gatk_path
 	}
 
 	if (!defined(zippedStarReferences)) {
@@ -52,7 +85,8 @@ workflow RNAseq {
 			ref_fasta_index = refFastaIndex,
 			annotations_gtf = annotationsGTF,
 			read_length = readLength,
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = star_docker
 		}
 	}
 
@@ -65,7 +99,8 @@ workflow RNAseq {
 			fastq2 = SamToFastq.fastq2,
 			base_name = sampleName + ".star",
 			read_length = readLength,
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = star_docker
 	}
 
 	call MergeBamAlignment {
@@ -75,14 +110,18 @@ workflow RNAseq {
 			base_name = ".merged",
 			ref_fasta = refFasta,
 			ref_dict = refDict,
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
 	}
 
 	call MarkDuplicates {
 		input:
 			input_bam = MergeBamAlignment.output_bam,
 			base_name = sampleName + ".dedupped",
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
 	}
 
 	call SplitNCigarReads {
@@ -94,7 +133,8 @@ workflow RNAseq {
 			ref_fasta_index = refFastaIndex,
 			ref_dict = refDict,
 			interval_list = wgsCallingIntervalList,
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = gitc_docker
 	}
 
 	call BaseRecalibrator {
@@ -109,7 +149,9 @@ workflow RNAseq {
   			ref_dict = refDict,
   			ref_fasta = refFasta,
   			ref_fasta_index = refFastaIndex,
-  			preemptible_count = preemptible_count
+  			preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
 	}
 
 	call ApplyBQSR {
@@ -121,14 +163,17 @@ workflow RNAseq {
 			ref_fasta_index = refFastaIndex,
 			ref_dict = refDict,
 			recalibration_report = BaseRecalibrator.recalibration_report,
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
 	}
 
 	call ScatterIntervalList {
 		input:
 			interval_list = wgsCallingIntervalList,
       		scatter_count = scatterCount,
-      		preemptible_count = preemptible_count
+      		preemptible_count = preemptible_count,
+			docker = gitc_docker
 	}
 
     scatter (i in range(ScatterIntervalList.interval_count)) {
@@ -144,7 +189,8 @@ workflow RNAseq {
 				dbSNP_vcf = dbSnpVcf,
 				dbSNP_vcf_index = dbSnpVcfIndex,
 				stand_call_conf = minConfidenceForVariantCalling,
-				preemptible_count = preemptible_count
+				preemptible_count = preemptible_count,
+				docker = gitc_docker
 		}
 	}
 
@@ -153,7 +199,9 @@ workflow RNAseq {
       		input_vcfs = HaplotypeCaller.output_gvcf,
       		input_vcfs_indexes = HaplotypeCaller.output_gvcf_index,
       		output_vcf_name = sampleName + ".g.vcf.gz",
-      		preemptible_count = preemptible_count
+      		preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
   	}
 
 	call VariantFiltration {
@@ -164,7 +212,9 @@ workflow RNAseq {
 			ref_fasta = refFasta,
 			ref_fasta_index = refFastaIndex,
 			ref_dict = refDict,
-			preemptible_count = preemptible_count
+			preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
 	}
 
 	output {
@@ -183,15 +233,18 @@ task SamToFastq {
 	File unmapped_bam
 	String base_name
 
+    String gatk_path
+
+    String docker
 	Int preemptible_count
 
 	command <<<
-	 	java -jar /usr/gitc/picard.jar \
+	 	${gatk_path} \
 	 	    SamToFastq \
-	 	    INPUT=${unmapped_bam} \
-	 	    VALIDATION_STRINGENCY=SILENT \
-	 	    FASTQ=${base_name}.1.fastq.gz \
-	 	    SECOND_END_FASTQ=${base_name}.2.fastq.gz
+	 	    --INPUT ${unmapped_bam} \
+	 	    --VALIDATION_STRINGENCY SILENT \
+	 	    --FASTQ ${base_name}.1.fastq.gz \
+	 	    --SECOND_END_FASTQ ${base_name}.2.fastq.gz
 	>>>
 
 	output {
@@ -200,7 +253,7 @@ task SamToFastq {
 	}
 
 	runtime {
-		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+		docker: docker
 		memory: "4 GB"
 		disks: "local-disk " + sub(((size(unmapped_bam,"GB")+1)*5),"\\..*","") + " HDD"
 		preemptible: preemptible_count
@@ -215,9 +268,16 @@ task StarGenerateReferences {
 
     Int? num_threads
     Int threads = select_first([num_threads, 8])
+    
+    Int? additional_disk
+    Int disk_size = 100 + additional_disk
+    Int? mem_gb
+    Int mem = select_first([100, mem_gb])
+    String docker
     Int preemptible_count
 
     command <<<
+        set -e
         mkdir STAR2_5
 
         STAR \
@@ -239,10 +299,10 @@ task StarGenerateReferences {
     }
 
     runtime {
-        docker: "ruchim/star:v1"
-        disks: "local-disk 80 HDD"
+        docker: docker
+        disks: "local-disk " + disk_size + " HDD"
         cpu: threads
-        memory: "25 GB"
+        memory: mem +" GB"
         preemptible: preemptible_count
     }
 }
@@ -261,12 +321,15 @@ task StarAlign {
     Int star_mem = select_first([star_mem_max_gb, 45])
     #Is there an appropriate default for this?
     Int? star_limitOutSJcollapsed
+
+    Int? additional_disk
+    String docker
     Int preemptible_count
 
     command <<<
         set -e
 
-        tar xvzf ${star_genome_refs_zipped}
+        tar -xvzf ${star_genome_refs_zipped}
 
         STAR \
             --genomeDir STAR2_5 \
@@ -290,8 +353,8 @@ task StarAlign {
     }
 
     runtime {
-        docker: "ruchim/star:v1"
-        disks: "local-disk " + sub(((size(fastq1,"GB")+size(fastq2,"GB")*10)+30),"\\..*","") + " HDD"
+        docker: docker
+        disks: "local-disk " + sub(((size(fastq1,"GB")+size(fastq2,"GB")*10)+30+additional_disk),"\\..*","") + " HDD"
         memory: (star_mem+1) + " GB"
         cpu: threads
         preemptible: preemptible_count
@@ -307,19 +370,22 @@ task MergeBamAlignment {
     File star_bam
     String base_name
 
+    String gatk_path
+
+    String docker
     Int preemptible_count
     #Using default for max_records_in_ram
  
     command <<<
-        java -jar /usr/gitc/picard.jar \
+        ${gatk_path} \
             MergeBamAlignment \
-            REFERENCE_SEQUENCE=${ref_fasta} \
-            UNMAPPED_BAM=${unaligned_bam} \
-            ALIGNED_BAM=${star_bam} \
-            OUTPUT=${base_name}.bam \
-            INCLUDE_SECONDARY_ALIGNMENTS=false \
-            PAIRED_RUN=False \
-            VALIDATION_STRINGENCY=SILENT
+            --REFERENCE_SEQUENCE ${ref_fasta} \
+            --UNMAPPED_BAM ${unaligned_bam} \
+            --ALIGNED_BAM ${star_bam} \
+            --OUTPUT ${base_name}.bam \
+            --INCLUDE_SECONDARY_ALIGNMENTS false \
+            --PAIRED_RUN False \
+            --VALIDATION_STRINGENCY SILENT
     >>>
  
     output {
@@ -327,7 +393,7 @@ task MergeBamAlignment {
     }
 
     runtime {
-        docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+        docker: docker
         disks: "local-disk " + sub(((size(unaligned_bam,"GB")+size(star_bam,"GB")+1)*5),"\\..*","") + " HDD"
         memory: "4 GB"
         preemptible: preemptible_count
@@ -339,16 +405,19 @@ task MarkDuplicates {
  	File input_bam
  	String base_name
 
+    String gatk_path
+
+    String docker
  	Int preemptible_count
 
  	command <<<
- 	    java -jar /usr/gitc/picard.jar \
+ 	    ${gatk_path} \
  	        MarkDuplicates \
- 	        INPUT=${input_bam} \
- 	        OUTPUT=${base_name}.bam  \
- 	        CREATE_INDEX=true \
- 	        VALIDATION_STRINGENCY=SILENT \
- 	        METRICS_FILE=${base_name}.metrics
+ 	        --INPUT ${input_bam} \
+ 	        --OUTPUT ${base_name}.bam  \
+ 	        --CREATE_INDEX true \
+ 	        --VALIDATION_STRINGENCY SILENT \
+ 	        --METRICS_FILE ${base_name}.metrics
  	>>>
 
  	output {
@@ -359,7 +428,7 @@ task MarkDuplicates {
 
 	runtime {
 		disks: "local-disk " + sub(((size(input_bam,"GB")+1)*3),"\\..*","") + " HDD"
-		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+		docker: docker
 		memory: "4 GB"
 		preemptible: preemptible_count
 	}
@@ -377,6 +446,7 @@ task SplitNCigarReads {
 	File ref_fasta_index
 	File ref_dict
 
+    String docker
 	Int preemptible_count
 
     command <<<
@@ -398,7 +468,7 @@ task SplitNCigarReads {
 
     runtime {
     	disks: "local-disk " + sub(((size(input_bam,"GB")+1)*5 + size(ref_fasta,"GB")),"\\..*","") + " HDD"
-		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+		docker: docker
 		memory: "4 GB"
     	preemptible: preemptible_count
     }
@@ -420,19 +490,22 @@ task BaseRecalibrator {
     File ref_fasta
     File ref_fasta_index
 
+    String gatk_path
+
+    String docker
     Int preemptible_count
 
     command <<<
-        /gatk/gatk-launch --javaOptions "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
+        ${gatk_path} --java-options "-XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -XX:+PrintFlagsFinal \
             -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps -XX:+PrintGCDetails \
             -Xloggc:gc_log.log -Xms4000m" \
             BaseRecalibrator \
             -R ${ref_fasta} \
             -I ${input_bam} \
-            --useOriginalQualities \
+            --use-original-qualities \
             -O ${recal_output_file} \
-            -knownSites ${dbSNP_vcf} \
-            -knownSites ${sep=" -knownSites " known_indels_sites_VCFs}
+            -known-sites ${dbSNP_vcf} \
+            -known-sites ${sep=" --known-sites " known_indels_sites_VCFs}
     >>>
 
     output {
@@ -442,7 +515,7 @@ task BaseRecalibrator {
     runtime {
         memory: "6 GB"
         disks: "local-disk " + sub((size(input_bam,"GB")*3)+30, "\\..*", "") + " HDD"
-        docker: "broadinstitute/gatk:4.beta.6"
+        docker: docker
         preemptible: preemptible_count
     }
 }
@@ -458,20 +531,24 @@ task ApplyBQSR {
     File ref_dict
     File ref_fasta
     File ref_fasta_index
+
+    String gatk_path
+
+    String docker
     Int preemptible_count
 
     command <<<
-        /gatk/gatk-launch \
-            --javaOptions "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
+        ${gatk_path} \
+            --java-options "-XX:+PrintFlagsFinal -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps \
             -XX:+PrintGCDetails -Xloggc:gc_log.log \
             -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10 -Xms3000m" \
             ApplyBQSR \
-            --addOutputSAMProgramRecord \
+            --add-output-sam-program-record \
             -R ${ref_fasta} \
             -I ${input_bam} \
-            --useOriginalQualities \
+            --use-original-qualities \
             -O ${base_name}.bam \
-            -bqsr ${recalibration_report}
+            --bqsr-recal-file ${recalibration_report}
     >>>
 
     output {
@@ -483,7 +560,7 @@ task ApplyBQSR {
         memory: "3500 MB"
         disks: "local-disk " + sub((size(input_bam,"GB")*4)+30, "\\..*", "") + " HDD"
         preemptible: preemptible_count
-        docker: "broadinstitute/gatk:4.beta.6"
+        docker: docker
     }
 }
 
@@ -502,6 +579,7 @@ task HaplotypeCaller {
   	File dbSNP_vcf
   	File dbSNP_vcf_index
 
+    String docker
   	Int preemptible_count
 
   	Int? stand_call_conf
@@ -513,7 +591,7 @@ task HaplotypeCaller {
 		    -I ${input_bam} \
 		    -L ${interval_list} \
 		    -dontUseSoftClippedBases \
-		    -stand_call_conf + ${default=20 stand_call_conf} \
+		    -stand_call_conf ${default=20 stand_call_conf} \
 		    --dbsnp ${dbSNP_vcf} \
 		    -o ${base_name}.vcf.gz
 	>>>
@@ -524,7 +602,7 @@ task HaplotypeCaller {
     }
 
 	runtime {
-		docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+		docker: docker
 		memory: "3 GB"
 		disks: "local-disk " + sub((size(input_bam,"GB")*2)+30, "\\..*", "") + " HDD"
 		preemptible: preemptible_count
@@ -541,19 +619,22 @@ task VariantFiltration {
   	File ref_fasta
   	File ref_fasta_index
 
+    String gatk_path
+
+    String docker
   	Int preemptible_count
 
 	command <<<
-		/gatk/gatk-launch \
+		 ${gatk_path} \
 		    VariantFiltration \
-			-R ${ref_fasta} \
-			-V ${input_vcf} \
-			-window 35 \
-			-cluster 3 \
-			-filterName "FS" \
-			-filter "FS > 30.0" \
-			-filterName "QD" \
-			-filter "QD < 2.0" \
+			--R ${ref_fasta} \
+			--V ${input_vcf} \
+			--window 35 \
+			--cluster 3 \
+			--filter-name "FS" \
+			--filter "FS > 30.0" \
+			--filter-name "QD" \
+			--filter "QD < 2.0" \
 			-O ${base_name}
 	>>>
 
@@ -563,7 +644,7 @@ task VariantFiltration {
 	}
 
 	runtime {
-		docker: "broadinstitute/gatk:4.beta.6"
+		docker: docker
 		memory: "3 GB"
 		disks: "local-disk " + sub((size(input_vcf,"GB")*2)+30, "\\..*", "") + " HDD"
 		preemptible: preemptible_count
@@ -576,15 +657,19 @@ task MergeVCFs {
     String output_vcf_name
 
     Int? disk_size = 5
+
+    String gatk_path
+
+    String docker
     Int preemptible_count
 
     # Using MergeVcfs instead of GatherVcfs so we can create indices
     # See https://github.com/broadinstitute/picard/issues/789 for relevant GatherVcfs ticket
     command <<<
-        java -Xms2000m -jar /usr/gitc/picard.jar \
+        ${gatk_path} --java-options "-Xms2000m"  \
             MergeVcfs \
-            INPUT=${sep=' INPUT=' input_vcfs} \
-            OUTPUT=${output_vcf_name}
+            --INPUT ${sep=' --INPUT=' input_vcfs} \
+            --OUTPUT ${output_vcf_name}
     >>>
 
     output {
@@ -595,7 +680,7 @@ task MergeVCFs {
     runtime {
         memory: "3 GB"
         disks: "local-disk " + disk_size + " HDD"
-        docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+        docker: docker
         preemptible: preemptible_count
     }
 }
@@ -605,6 +690,7 @@ task ScatterIntervalList {
     File interval_list
     Int scatter_count
 
+    String docker
     Int preemptible_count
 
     command <<<
@@ -639,7 +725,7 @@ task ScatterIntervalList {
     runtime {
         disks: "local-disk 1 HDD"
         memory: "2 GB"
-        docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+        docker: docker
         preemptible: preemptible_count
     }
 }
@@ -649,17 +735,20 @@ task RevertSam {
     String base_name
     String sort_order
 
+    String gatk_path
+
+    String docker
     Int preemptible_count
 
     command <<<
-        java -jar /usr/gitc/picard.jar \
+        ${gatk_path} \
         	RevertSam \
-        	INPUT=${input_bam} \
-        	OUTPUT=${base_name}.bam \
-        	VALIDATION_STRINGENCY=SILENT \
-        	ATTRIBUTE_TO_CLEAR=FT \
-        	ATTRIBUTE_TO_CLEAR=CO \
-        	SORT_ORDER=${sort_order}
+        	--INPUT ${input_bam} \
+        	--OUTPUT ${base_name}.bam \
+            --VALIDATION_STRINGENCY SILENT \
+        	--ATTRIBUTE_TO_CLEAR FT \
+        	--ATTRIBUTE_TO_CLEAR CO \
+        	--SORT_ORDER ${sort_order}
     >>>
 
     output {
@@ -667,9 +756,10 @@ task RevertSam {
     }
 
     runtime {
-        docker: "broadinstitute/genomes-in-the-cloud:2.3.1-1504795437"
+        docker: docker
         disks: "local-disk " + sub(((size(input_bam,"GB")+1)*5),"\\..*","") + " HDD"
         memory: "4 GB"
         preemptible: preemptible_count
     }
 }
+
