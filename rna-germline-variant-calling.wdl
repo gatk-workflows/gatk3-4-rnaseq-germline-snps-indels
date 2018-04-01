@@ -30,21 +30,21 @@
 	File refFastaIndex
 	File refDict
     
-    String gitc_docker
-    String gatk4_docker
-    String star_docker
+	String gitc_docker
+	String gatk4_docker
+ 	String star_docker
 
-    String gatk_path
+	String gatk_path
 	
 	File wgsCallingIntervalList
 
 	Array[File] knownVcfs
 	Array[File] knownVcfsIndices
 
-    File dbSnpVcf
-    File dbSnpVcfIndex
+	File dbSnpVcf
+	File dbSnpVcfIndex
 
-    Int? minConfidenceForVariantCalling
+	Int? minConfidenceForVariantCalling
 
 	## Inputs for STAR
 	Int? readLength
@@ -53,10 +53,10 @@
   
   	## Optional user optimizations
   	Int? haplotypeScatterCount
-    Int scatterCount = select_first([haplotypeScatterCount, 6])
+	Int scatterCount = select_first([haplotypeScatterCount, 6])
 
-    Int? preemptible_tries
-    Int preemptible_count = select_first([preemptible_tries, 3])
+	Int? preemptible_tries
+	Int preemptible_count = select_first([preemptible_tries, 3])
 
 	call RevertSam {
 		input:
@@ -70,23 +70,23 @@
 
 	call SamToFastq {
 		input:
-		unmapped_bam = RevertSam.output_bam,
-		base_name = sampleName,
-		preemptible_count = preemptible_count,
-		docker = gatk4_docker,
-		gatk_path = gatk_path
+			unmapped_bam = RevertSam.output_bam,
+			base_name = sampleName,
+			preemptible_count = preemptible_count,
+			docker = gatk4_docker,
+			gatk_path = gatk_path
 	}
 
 	if (!defined(zippedStarReferences)) {
 
 		call StarGenerateReferences { 
 			input:
-			ref_fasta = refFasta,
-			ref_fasta_index = refFastaIndex,
-			annotations_gtf = annotationsGTF,
-			read_length = readLength,
-			preemptible_count = preemptible_count,
-			docker = star_docker
+				ref_fasta = refFasta,
+				ref_fasta_index = refFastaIndex,
+				annotations_gtf = annotationsGTF,
+				read_length = readLength,
+				preemptible_count = preemptible_count,
+				docker = star_docker
 		}
 	}
 
@@ -171,8 +171,8 @@
 	call ScatterIntervalList {
 		input:
 			interval_list = wgsCallingIntervalList,
-      		scatter_count = scatterCount,
-      		preemptible_count = preemptible_count,
+      			scatter_count = scatterCount,
+      			preemptible_count = preemptible_count,
 			docker = gitc_docker
 	}
 
@@ -195,11 +195,11 @@
 	}
 
 	call MergeVCFs {
-    	input:
-      		input_vcfs = HaplotypeCaller.output_gvcf,
-      		input_vcfs_indexes = HaplotypeCaller.output_gvcf_index,
-      		output_vcf_name = sampleName + ".g.vcf.gz",
-      		preemptible_count = preemptible_count,
+    		input:
+      			input_vcfs = HaplotypeCaller.output_gvcf,
+      			input_vcfs_indexes = HaplotypeCaller.output_gvcf_index,
+      			output_vcf_name = sampleName + ".g.vcf.gz",
+      			preemptible_count = preemptible_count,
 			docker = gatk4_docker,
 			gatk_path = gatk_path
   	}
@@ -233,9 +233,9 @@ task SamToFastq {
 	File unmapped_bam
 	String base_name
 
-    String gatk_path
+    	String gatk_path
 
-    String docker
+    	String docker
 	Int preemptible_count
 
 	command <<<
@@ -249,7 +249,7 @@ task SamToFastq {
 
 	output {
 		File fastq1 = "${base_name}.1.fastq.gz"
-    	File fastq2 = "${base_name}.2.fastq.gz"
+    		File fastq2 = "${base_name}.2.fastq.gz"
 	}
 
 	runtime {
