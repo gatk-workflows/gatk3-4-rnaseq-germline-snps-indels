@@ -25,7 +25,7 @@
   
   "##_COMMENT4": "DOCKERS",
   "RNAseq.gatk4_docker": "us.gcr.io/broad-gatk/gatk",
-  "RNAseq.star_docker": "ruchim/star:v1",
+  "RNAseq.star_docker": "quay.io/humancellatlas/secondary-analysis-star:v0.2.2-2.5.3a-40ead6e",
   "RNAseq.gitc_docker": "us.gcr.io/broad-gotc-prod/genomes-in-the-cloud:2.3.3-1513176735",
   
   "##_COMMENT5": "PATHS",
