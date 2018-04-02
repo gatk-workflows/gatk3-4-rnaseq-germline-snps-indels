@@ -261,104 +261,106 @@ task SamToFastq {
 }
 
 task StarGenerateReferences {
-    File ref_fasta
-    File ref_fasta_index
-    File annotations_gtf
-    Int? read_length  ## Should this be an input, or should this always be determined by reading the first line of a fastq input
+	File ref_fasta
+	File ref_fasta_index
+	File annotations_gtf
+	Int? read_length  ## Should this be an input, or should this always be determined by reading the first line of a fastq input
 
-    Int? num_threads
-    Int threads = select_first([num_threads, 8])
+	Int? num_threads
+	Int threads = select_first([num_threads, 8])
     
-    Int? additional_disk
-    Int disk_size = 100 + additional_disk
-    Int? mem_gb
-    Int mem = select_first([100, mem_gb])
-    String docker
-    Int preemptible_count
+	Int? additional_disk
+        Int add_to_disk = select_first([additional_disk, 0])
+	Int disk_size = select_first([100 + add_to_disk, 100])
+	Int? mem_gb
+	Int mem = select_first([100, mem_gb])
+	String docker
+	Int preemptible_count
 
-    command <<<
-        set -e
-        mkdir STAR2_5
+	command <<<
+		set -e
+		mkdir STAR2_5
 
-        STAR \
-            --runMode genomeGenerate \
-            --genomeDir STAR2_5 \
-            --genomeFastaFiles ${ref_fasta} \
-            --sjdbGTFfile ${annotations_gtf} \
-            ${"--sjdbOverhang "+(read_length-1)} \
-            --runThreadN ${threads}
+		STAR \
+		--runMode genomeGenerate \
+		--genomeDir STAR2_5 \
+		--genomeFastaFiles ${ref_fasta} \
+		--sjdbGTFfile ${annotations_gtf} \
+		${"--sjdbOverhang "+(read_length-1)} \
+		--runThreadN ${threads}
 
-        ls STAR2_5
+		ls STAR2_5
 
-        tar -zcvf star-HUMAN-refs.tar.gz STAR2_5
-    >>>
+		tar -zcvf star-HUMAN-refs.tar.gz STAR2_5
+	>>>
 
-    output {
-        Array[File] star_logs = glob("*.out")
-        File star_genome_refs_zipped = "star-HUMAN-refs.tar.gz"
-    }
+	output {
+		Array[File] star_logs = glob("*.out")
+		File star_genome_refs_zipped = "star-HUMAN-refs.tar.gz"
+	}
 
-    runtime {
-        docker: docker
-        disks: "local-disk " + disk_size + " HDD"
-        cpu: threads
-        memory: mem +" GB"
-        preemptible: preemptible_count
-    }
+	runtime {
+		docker: docker
+		disks: "local-disk " + disk_size + " HDD"
+		cpu: threads
+		memory: mem +" GB"
+		preemptible: preemptible_count
+	}
 }
 
 
 task StarAlign {
-    File star_genome_refs_zipped
-    File fastq1
-    File fastq2
-    String base_name
-    Int? read_length
+	File star_genome_refs_zipped
+	File fastq1
+	File fastq2
+	String base_name
+	Int? read_length
 
-    Int? num_threads
-    Int threads = select_first([num_threads, 8])
-    Int? star_mem_max_gb
-    Int star_mem = select_first([star_mem_max_gb, 45])
-    #Is there an appropriate default for this?
-    Int? star_limitOutSJcollapsed
+	Int? num_threads
+	Int threads = select_first([num_threads, 8])
+	Int? star_mem_max_gb
+	Int star_mem = select_first([star_mem_max_gb, 45])
+	#Is there an appropriate default for this?
+	Int? star_limitOutSJcollapsed
 
-    Int? additional_disk
-    String docker
-    Int preemptible_count
+	Int? additional_disk
+	Int add_to_disk = select_first([additional_disk, 0])
+	String docker
+	Int preemptible_count
 
-    command <<<
-        set -e
+	command <<<
+		set -e
 
-        tar -xvzf ${star_genome_refs_zipped}
+		tar -xvzf ${star_genome_refs_zipped}
 
-        STAR \
-            --genomeDir STAR2_5 \
-            --runThreadN ${threads} \
-            --readFilesIn ${fastq1} ${fastq2} \
-            --readFilesCommand "gunzip -c" \
-            ${"--sjdbOverhang "+(read_length-1)} \
-            --outSAMtype BAM SortedByCoordinate \
-            --twopassMode Basic \
-            --limitBAMsortRAM ${star_mem+"000000000"} \
-            --limitOutSJcollapsed ${default=1000000 star_limitOutSJcollapsed} \
-            --outFileNamePrefix ${base_name}.
-    >>>
+		STAR \
+		--genomeDir STAR2_5 \
+		--runThreadN ${threads} \
+		--readFilesIn ${fastq1} ${fastq2} \
+		--readFilesCommand "gunzip -c" \
+		${"--sjdbOverhang "+(read_length-1)} \
+		--outSAMtype BAM SortedByCoordinate \
+		--twopassMode Basic \
+		--limitBAMsortRAM ${star_mem+"000000000"} \
+		--limitOutSJcollapsed ${default=1000000 star_limitOutSJcollapsed} \
+		--outFileNamePrefix ${base_name}.
+	>>>
 
-    output {
-        File output_bam = "${base_name}.Aligned.sortedByCoord.out.bam"
-        File output_log_final = "${base_name}.Log.final.out"
-        File output_log = "${base_name}.Log.out"
-        File output_log_progress = "${base_name}.Log.progress.out"
-        File output_SJ = "${base_name}.SJ.out.tab"
-    }
+	output {
+		File output_bam = "${base_name}.Aligned.sortedByCoord.out.bam"
+		File output_log_final = "${base_name}.Log.final.out"
+		File output_log = "${base_name}.Log.out"
+		File output_log_progress = "${base_name}.Log.progress.out"
+		File output_SJ = "${base_name}.SJ.out.tab"
+	}
 
-    runtime {
-        docker: docker
-        disks: "local-disk " + sub(((size(fastq1,"GB")+size(fastq2,"GB")*10)+30+additional_disk),"\\..*","") + " HDD"
-        memory: (star_mem+1) + " GB"
-        cpu: threads
-        preemptible: preemptible_count
-    }
+	runtime {
+		docker: docker
+		disks: "local-disk " + sub(((size(fastq1,"GB")+size(fastq2,"GB")*10)+30+add_to_disk),"\\..*","") + " HDD"
+		memory: (star_mem+1) + " GB"
+		cpu: threads
+		preemptible: preemptible_count
+	}
 }
 
 task MergeBamAlignment {
