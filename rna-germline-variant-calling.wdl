@@ -196,8 +196,8 @@
 
 	call MergeVCFs {
     		input:
-      			input_vcfs = HaplotypeCaller.output_gvcf,
-      			input_vcfs_indexes = HaplotypeCaller.output_gvcf_index,
+      			input_vcfs = HaplotypeCaller.output_vcf,
+      			input_vcfs_indexes = HaplotypeCaller.output_vcf_index,
       			output_vcf_name = sampleName + ".g.vcf.gz",
       			preemptible_count = preemptible_count,
 			docker = gatk4_docker,
@@ -220,10 +220,10 @@
 	output {
 		File recalibrated_bam = ApplyBQSR.output_bam
 		File recalibrated_bam_index = ApplyBQSR.output_bam_index
-		File merged_gvcf = MergeVCFs.output_vcf
-		File merged_gvcf_index = MergeVCFs.output_vcf_index
-		File variant_filtered_gvcf = VariantFiltration.output_vcf
-		File variant_filtered_gvcf_index = VariantFiltration.output_vcf_index
+		File merged_vcf = MergeVCFs.output_vcf
+		File merged_vcf_index = MergeVCFs.output_vcf_index
+		File variant_filtered_vcf = VariantFiltration.output_vcf
+		File variant_filtered_vcf_index = VariantFiltration.output_vcf_index
 	}
 }
 
@@ -599,8 +599,8 @@ task HaplotypeCaller {
 	>>>
 
     output {
-        File output_gvcf = "${base_name}.vcf.gz"
-        File output_gvcf_index = "${base_name}.vcf.gz.tbi"
+        File output_vcf = "${base_name}.vcf.gz"
+        File output_vcf_index = "${base_name}.vcf.gz.tbi"
     }
 
 	runtime {
