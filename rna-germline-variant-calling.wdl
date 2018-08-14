@@ -54,8 +54,8 @@
 	File? zippedStarReferences
 	File annotationsGTF
   
-  ## Optional user optimizations
-  Int? haplotypeScatterCount
+	## Optional user optimizations
+	Int? haplotypeScatterCount
 	Int scatterCount = select_first([haplotypeScatterCount, 6])
 	Boolean? use_gatk4_for_all_tools
 	Boolean use_all_gatk4 = select_first([use_gatk4_for_all_tools, false])
@@ -194,8 +194,8 @@
 		call ScatterIntervalList {
 			input:
 				interval_list = wgsCallingIntervalList,
-	      			scatter_count = scatterCount,
-      				preemptible_count = preemptible_count,
+				scatter_count = scatterCount,
+				preemptible_count = preemptible_count,
 				docker = gitc_docker
 		}
 	}
@@ -203,10 +203,10 @@
         if (use_all_gatk4){
                 call ScatterIntervalList_GATK4 {
                         input:
-                                interval_list = wgsCallingIntervalList,
-                                scatter_count = scatterCount,
-                                preemptible_count = preemptible_count,
-                                docker = gatk4_docker,
+				interval_list = wgsCallingIntervalList,
+				scatter_count = scatterCount,
+				preemptible_count = preemptible_count,
+				docker = gatk4_docker,
 				gatk_path = gatk_path
                 }
         }
@@ -553,7 +553,7 @@ task SplitNCigarReads_GATK4 {
                 SplitNCigarReads \
                 -R ${ref_fasta} \
                 -I ${input_bam} \
-                -O ${base_name}.bam \
+                -O ${base_name}.bam 
     >>>
 
         output {
@@ -563,8 +563,8 @@ task SplitNCigarReads_GATK4 {
 
     runtime {
         disks: "local-disk " + sub(((size(input_bam,"GB")+1)*5 + size(ref_fasta,"GB")),"\\..*","") + " HDD"
-                docker: docker
-                memory: "4 GB"
+        docker: docker
+        memory: "4 GB"
         preemptible: preemptible_count
     }
 }
@@ -666,15 +666,15 @@ task HaplotypeCaller {
 
 	File interval_list
 
-  File ref_dict
-  File ref_fasta
-  File ref_fasta_index
+	File ref_dict
+	File ref_fasta
+	File ref_fasta_index
 
-  File dbSNP_vcf
-  File dbSNP_vcf_index
+	File dbSNP_vcf
+	File dbSNP_vcf_index
 	String docker
-  Int preemptible_count
- 	Int? stand_call_conf
+	Int preemptible_count
+	Int? stand_call_conf
 
 	command <<<
 		java -jar /usr/gitc/GATK35.jar \
