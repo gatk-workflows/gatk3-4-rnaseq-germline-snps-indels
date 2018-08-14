@@ -43,7 +43,7 @@
   "#RNAseq.StarGenerateReferences.num_threads": "(optional) Int?",
   "#RNAseq.StarGenerateReferences.mem_gb": "(optional) Int?",
   "#RNAseq.haplotypeScatterCount": "(optional) Int?",
-  "RNAseq.use_gatk4_for_all_tools": "true",
+  "#RNAseq.use_gatk4_for_all_tools": "(optional) Boolean",
   "#RNAseq.use_gatk4_for_all_tools": "Boolean? (optional)",
   "#RNAseq.minConfidenceForVariantCalling": "(optional) Int?",
   "#RNAseq.zippedStarReferences": "(optional) File?",

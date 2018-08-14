@@ -54,8 +54,8 @@
 	File? zippedStarReferences
 	File annotationsGTF
   
-  	## Optional user optimizations
-  	Int? haplotypeScatterCount
+  ## Optional user optimizations
+  Int? haplotypeScatterCount
 	Int scatterCount = select_first([haplotypeScatterCount, 6])
 	Boolean? use_gatk4_for_all_tools
 	Boolean use_all_gatk4 = select_first([use_gatk4_for_all_tools, false])
@@ -290,9 +290,9 @@ task SamToFastq {
 	File unmapped_bam
 	String base_name
 
-    	String gatk_path
+  String gatk_path
 
-    	String docker
+  String docker
 	Int preemptible_count
 
 	command <<<
@@ -464,9 +464,9 @@ task MarkDuplicates {
  	File input_bam
  	String base_name
 
-    String gatk_path
+  String gatk_path
 
-    String docker
+  String docker
  	Int preemptible_count
 
  	command <<<
@@ -535,14 +535,14 @@ task SplitNCigarReads {
 
 task SplitNCigarReads_GATK4 {
 
-        File input_bam
-        File input_bam_index
-        String base_name
-        File interval_list
+  File input_bam
+  File input_bam_index
+  String base_name
+  File interval_list
 
-        File ref_fasta
-        File ref_fasta_index
-        File ref_dict
+  File ref_fasta
+  File ref_fasta_index
+  File ref_dict
 
 	String gatk_path
 	String docker
@@ -666,17 +666,15 @@ task HaplotypeCaller {
 
 	File interval_list
 
-  	File ref_dict
-  	File ref_fasta
-  	File ref_fasta_index
+  File ref_dict
+  File ref_fasta
+  File ref_fasta_index
 
-  	File dbSNP_vcf
-  	File dbSNP_vcf_index
-
+  File dbSNP_vcf
+  File dbSNP_vcf_index
 	String docker
-  	Int preemptible_count
-
-  	Int? stand_call_conf
+  Int preemptible_count
+ 	Int? stand_call_conf
 
 	command <<<
 		java -jar /usr/gitc/GATK35.jar \
@@ -755,13 +753,13 @@ task VariantFiltration {
 	File input_vcf_index
 	String base_name
 
-  	File ref_dict
-  	File ref_fasta
-  	File ref_fasta_index
+ 	File ref_dict
+ 	File ref_fasta
+ 	File ref_fasta_index
 
 	String gatk_path
 	String docker
-  	Int preemptible_count
+ 	Int preemptible_count
 
 	command <<<
 		 ${gatk_path} \
