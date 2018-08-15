@@ -24,26 +24,27 @@
   "RNAseq.annotationsGTF": "gs://gatk-test-data/intervals/star.gencode.v19.transcripts.patched_contigs.gtf",
   
   "##_COMMENT4": "DOCKERS",
-  "RNAseq.gatk4_docker": "us.gcr.io/broad-gatk/gatk",
-  "RNAseq.star_docker": "quay.io/humancellatlas/secondary-analysis-star:v0.2.2-2.5.3a-40ead6e",
-  "RNAseq.gitc_docker": "us.gcr.io/broad-gotc-prod/genomes-in-the-cloud:2.3.3-1513176735",
+  "#RNAseq.gatk4_docker_override": "String? (optional)",
+  "#RNAseq.star_docker_override": "String? (optional)",
+  "#RNAseq.gitc_docker_override": "String? (optional)",
   
   "##_COMMENT5": "PATHS",
-  "RNAseq.gatk_path": "/gatk/gatk",
+  "#RNAseq.gatk_path_override": "/gatk/gatk",
 
   "##_COMMENT6": "PREEMPTIBLES",
   "##RNAseq.preemptible_tries": "(optional) Int?",
   
   "##_COMMENT7": "Misc",
-  "##RNAseq.StarAlign.num_threads": "(optional) Int?",
-  "##RNAseq.StarAlign.star_limitOutSJcollapsed": "(optional) Int?",
-  "##RNAseq.minConfidenceForVariantCalling": "(optional) Int?",
-  "##RNAseq.haplotypeScatterCount": "(optional) Int?",
-  "##RNAseq.zippedStarReferences": "(optional) File?",
-  "RNAseq.StarGenerateReferences.addtional_disk": 50,
-  "##RNAseq.readLength": "(optional) Int?",
-  "##RNAseq.StarAlign.star_mem_max_gb": "(optional) Int?",
-  "##RNAseq.StarGenerateReferences.num_threads": "(optional) Int?",
+  "#RNAseq.StarAlign.num_threads": "(optional) Int?",
+  "#RNAseq.StarAlign.star_limitOutSJcollapsed": "(optional) Int?",
   "RNAseq.StarAlign.additional_disk": "50",
-  "##RNAseq.StarGenerateReferences.mem_gb": "(optional) Int?"
+  "#RNAseq.StarAlign.star_mem_max_gb": "(optional) Int?",
+  "RNAseq.StarGenerateReferences.addtional_disk": 50,
+  "#RNAseq.StarGenerateReferences.num_threads": "(optional) Int?",
+  "#RNAseq.StarGenerateReferences.mem_gb": "(optional) Int?",
+  "#RNAseq.haplotypeScatterCount": "(optional) Int?",
+  "#RNAseq.use_gatk4_for_all_tools": "(optional) Boolean",
+  "#RNAseq.minConfidenceForVariantCalling": "(optional) Int?",
+  "#RNAseq.zippedStarReferences": "(optional) File?",
+  "#RNAseq.readLength": "(optional) Int?"
 }
