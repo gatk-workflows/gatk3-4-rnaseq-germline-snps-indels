@@ -1,5 +1,7 @@
 # gatk3-4-rnaseq-germline-snps-indels
- Workflows for processing RNA data for germline short variant discovery with GATK (v3+v4) and related tools 
+**GATK3 and this workflow is now longer supported, this repo is intended for legacy purposes. Pleas visit [gatk4-rnaseq-germline-snps-indels](https://github.com/gatk-workflows/gatk4-rnaseq-germline-snps-indels) for the latest version of the workflow**  
+
+Workflows for processing RNA data for germline short variant discovery with GATK (v3+v4) and related tools 
 
 ### Requirements/expectations :
  - BAM 
